@@ -10,7 +10,9 @@ Este repositorio contiene el código fuente para el procesamiento ETL, integraci
 ## 📁 Estructura del Ecosistema
 El ecosistema completo de datos y entregables se encuentra en el Google Drive Institucional de la CUN:
 - 📂 **Google Drive:** [https://drive.google.com/drive/folders/1FmDDq7XU3bHr16urbEkwQ4b-8xfL4fMr?usp=sharing]
-
+## 🚀 Enlace a la Aplicación Web (SSDA)
+Puedes explorar el Sistema de Soporte a la Decisión Agrofinanciera en tiempo real a través del siguiente enlace:
+- **Aplicación en Streamlit Cloud:** [Sistema Agrofinanciero CUN](https://sistema-agrofinanciero-cun.streamlit.app)
 ## 🛠️ Tecnologías Utilizadas
 - Python (Pandas, NumPy, Scikit-Learn)
 - Google Colab
