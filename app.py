@@ -185,13 +185,13 @@ st.header("📈 3. Posicionamiento Nacional (Suelos vs. Crédito FINAGRO)")
 if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
     df['CREDITO_BILLONES'] = df['TOTAL_VALOR_CREDITO'] / 1e12
 
+    # Gráfico limpio sin dependencias de tamaño para evitar errores de tipo
     fig = px.scatter(
         df,
         x='PCT_SUELOS_ACIDOS',
         y='CREDITO_BILLONES',
-        color='NOMBRE_PERFIL',
-        hover_name='DEPARTAMENTO_NORM',
-        size='TOTAL_PERDIDA_AREA' if 'TOTAL_PERDIDA_AREA' in df.columns else None,
+        color='NOMBRE_PERFIL' if 'NOMBRE_PERFIL' in df.columns else None,
+        hover_name='DEPARTAMENTO_NORM' if 'DEPARTAMENTO_NORM' in df.columns else None,
         log_y=True,
         title="Matriz Nacional: % Acidez vs. Valor Total Crédito FINAGRO (k=4)",
         labels={
@@ -203,13 +203,23 @@ if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
         height=650
     )
 
-    fig.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey'), opacity=0.85))
+    fig.update_traces(
+        marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey'), opacity=0.85)
+    )
+
     fig.update_layout(
-        legend=dict(orientation="v", yanchor="top", y=1.0, xanchor="left", x=1.02, title="**Perfiles**"),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1.0,
+            xanchor="left",
+            x=1.02,
+            title=dict(text="**Perfiles / Tipologías**")
+        ),
         margin=dict(t=50, b=50, l=50, r=180)
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("Nota: El tamaño del punto representa el área total perdida (Ha) según registros EVAS.")
+    st.caption("Nota: Pasa el cursor sobre cada punto para consultar el departamento exacto y su comportamiento edafofinanciero.")
 else:
     st.info("Cargue los datos de la matriz nacional para visualizar el gráfico interactivo.")
