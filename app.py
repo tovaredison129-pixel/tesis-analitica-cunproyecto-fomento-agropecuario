@@ -192,13 +192,20 @@ st.header("📈 3. Posicionamiento Nacional (Suelos vs. Crédito FINAGRO)")
 if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
     df['CREDITO_BILLONES'] = df['TOTAL_VALOR_CREDITO'] / 1e12
 
+    # Validar qué columna de pérdida de área existe realmente en el DataFrame
+    columna_tamano = None
+    for col_posible in ['TOTAL_PERDIDA_AREA', 'PERDIDA_AREA', 'AREA_PERDIDA']:
+        if col_posible in df.columns:
+            columna_tamano = col_posible
+            break
+
     fig = px.scatter(
         df,
         x='PCT_SUELOS_ACIDOS',
         y='CREDITO_BILLONES',
         color='NOMBRE_PERFIL',
         hover_name='DEPARTAMENTO_NORM',
-        size='TOTAL_PERDIDA_AREA' if 'TOTAL_PERDIDA_AREA' in df.columns else None,
+        size=columna_tamano, # Usa la columna detectada o ninguna si no está
         log_y=True,
         title="Matriz Nacional: % Acidez vs. Valor Total Crédito FINAGRO (k=4)",
         labels={
@@ -227,6 +234,6 @@ if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("Nota: El tamaño del punto representa el área total perdida (Ha) según registros EVAS. Pasa el cursor sobre cada punto para consultar el departamento exacto.")
+    st.caption("Nota: El tamaño del punto representa el área total afectada según registros. Pasa el cursor sobre cada punto para consultar el departamento exacto.")
 else:
     st.info("Cargue los datos de la matriz nacional para visualizar el gráfico interactivo.")
