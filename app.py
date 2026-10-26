@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
+import io
+import requests
 
 # Configuración de la página
 st.set_page_config(
@@ -11,34 +12,43 @@ st.set_page_config(
     layout="wide"
 )
 
-# Cargar la Tabla Maestra procesada desde el Google Drive Institucional
+# Cargar la Tabla Maestra directamente desde Google Drive Institucional
 @st.cache_data
 def cargar_datos():
-    # Enlace de descarga directa de tu Google Drive institucional
-    # (Asegúrate de que el archivo en Drive esté configurado como "Cualquier persona con el enlace")
+    # 1. Pega aquí el ID de tu archivo en Google Drive (el código largo que está entre /d/ y /view)
     file_id = "1KEIwpS5d-_5fUAGebS-ofhn-yQmuwITw"
+    
+    # URL de descarga directa de Google Drive
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     
     try:
-        df = pd.read_csv(url)
+        # Descarga el contenido del archivo usando requests
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        # Lee el archivo como Excel o CSV según corresponda
+        try:
+            df = pd.read_excel(io.BytesIO(response.content))
+        except:
+            df = pd.read_csv(io.BytesIO(response.content))
+            
     except Exception as e:
         st.error(f"Error al conectar con Google Drive: {e}")
-        # DataFrame de respaldo vacío o de emergencia para que la app no colapse
-        df = pd.DataFrame(columns=['DEPARTAMENTO_NORM', 'PH_PROMEDIO', 'PCT_SUELOS_ACIDOS', 'FOSFORO_MEDIANA', 'NOMBRE_PERFIL', 'TOTAL_VALOR_CREDITO'])
+        # DataFrame vacío de respaldo para evitar que la aplicación colapse
+        df = pd.DataFrame(columns=[
+            'DEPARTAMENTO_NORM', 'PH_PROMEDIO', 'PCT_SUELOS_ACIDOS', 
+            'FOSFORO_MEDIANA', 'NOMBRE_PERFIL', 'TOTAL_VALOR_CREDITO', 'TOTAL_PERDIDA_AREA'
+        ])
         
+    # Asegurar estandarización de perfiles
     if 'NOMBRE_PERFIL' not in df.columns and 'NOMBRE_CLUSTER' in df.columns:
         df['NOMBRE_PERFIL'] = df['NOMBRE_CLUSTER']
-        
-    if 'NOMBRE_PERFIL' not in df.columns:
-        df['NOMBRE_PERFIL'] = "Perfil General"
+    elif 'NOMBRE_PERFIL' not in df.columns:
+        df['NOMBRE_PERFIL'] = "Perfil General - Zona Agrofinanciera"
         
     return df
 
 df = cargar_datos()
-
-# Asegurar que la columna de perfiles tenga un nombre estandarizado
-if 'NOMBRE_PERFIL' not in df.columns and 'NOMBRE_CLUSTER' in df.columns:
-    df['NOMBRE_PERFIL'] = df['NOMBRE_CLUSTER']
 
 # ENCABEZADO PRINCIPAL
 st.title("🌾 Sistema de Soporte a la Decisión Agrofinanciera (SSDA)")
@@ -51,7 +61,7 @@ st.sidebar.header("📍 Parámetros del Productor")
 if not df.empty and 'DEPARTAMENTO_NORM' in df.columns:
     departamentos_disponibles = sorted(df['DEPARTAMENTO_NORM'].dropna().unique())
 else:
-    departamentos_disponibles = ["Bogotá, D.C."]
+    departamentos_disponibles = ["BOGOTÁ, D.C."]
 
 dep_sel = st.sidebar.selectbox("Seleccione su Departamento:", departamentos_disponibles)
 
@@ -118,28 +128,16 @@ with st.expander("📖 Haz clic aquí para ver la explicación detallada de los 
 
     with p1:
         st.markdown("🟢 **Perfil 1: Zonas de Transición y Desarrollo Moderado**")
-        st.markdown(
-            "Agrupa regiones con niveles moderados de acidez y estabilidad "
-            "productiva en la Costa Caribe y Valles Interandinos, con volúmenes de crédito controlados."
-        )
+        st.markdown("Agrupa regiones con niveles moderados de acidez y estabilidad productiva en la Costa Caribe y Valles Interandinos.")
     with p2:
         st.markdown("🔵 **Perfil 2: Alta Absorción Crediticia y Productividad**")
-        st.markdown(
-            "Identifica zonas de la Orinoquía y Amazonía con alta acidez edáfica, "
-            "pero con un rendimiento agrícola destacado y absorción constante de recursos."
-        )
+        st.markdown("Identifica zonas de la Orinoquía y Amazonía con alta acidez edáfica, pero con rendimiento agrícola destacado.")
     with p3:
         st.markdown("🟠 **Perfil 3: Alta Vulnerabilidad Edáfica (Suelos Ácidos)**")
-        st.markdown(
-            "Concentra departamentos del Eje Andino con fuerte dinámica de inversión y "
-            "cartera, enfrentando retos importantes por pérdida de área y acidez."
-        )
+        st.markdown("Concentra departamentos del Eje Andino con fuerte dinámica de inversión y retos por acidez.")
     with p4:
         st.markdown("🔴 **Perfil 4: Caso Atípico / Alta Concentración Nacional**")
-        st.markdown(
-            "Representado por el Valle del Cauca. Se aísla por su productividad sobresaliente "
-            "y por concentrar el mayor volumen de colocación de crédito FINAGRO del país."
-        )
+        st.markdown("Representado por el Valle del Cauca por su productividad y concentración de crédito FINAGRO.")
 
 st.divider()
 
@@ -160,12 +158,7 @@ with col_sim1:
 
     precio_ton_cal = st.number_input("Costo estimado de la Tonelada de Cal (COP):", min_value=100000, value=350000, step=25000)
 
-    # Cálculo técnico de la dosis de cal
-    if ph_finca < 5.5:
-        dosis_ton_ha = (5.5 - ph_finca) * 1.5
-    else:
-        dosis_ton_ha = 0.0
-
+    dosis_ton_ha = (5.5 - ph_finca) * 1.5 if ph_finca < 5.5 else 0.0
     total_ton = dosis_ton_ha * hectareas
     costo_total = total_ton * precio_ton_cal
 
@@ -176,13 +169,13 @@ with col_sim2:
         st.info(f"📦 **Requerimiento Total ({hectareas} Ha)**: **{total_ton:.2f} Toneladas**")
         st.success(f"💰 **Inversión Estimada en Enmienda**: **${costo_total:,.0f} COP**")
     else:
-        st.success("✅ **Suelo en Rango Óptimo**: Su nivel de pH no requiere encalado inmediato. Los fertilizantes aplicados tendrán buena disponibilidad.")
+        st.success("✅ **Suelo en Rango Óptimo**: Su nivel de pH no requiere encalado inmediato.")
 
     st.markdown("---")
     st.markdown("**Beneficios Agronómicos del Encalado:**")
     st.markdown("* **Elimina la toxicidad** por Aluminio e Hierro.")
     st.markdown("* **Desbloquea el Fósforo** disponible en el suelo.")
-    st.markdown("* Aumenta la eficiencia de los fertilizantes químicos hasta en un **30% - 40%**.")
+    st.markdown("* Aumenta la eficiencia de los fertilizantes químicos.")
 
 st.divider()
 
@@ -192,20 +185,13 @@ st.header("📈 3. Posicionamiento Nacional (Suelos vs. Crédito FINAGRO)")
 if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
     df['CREDITO_BILLONES'] = df['TOTAL_VALOR_CREDITO'] / 1e12
 
-    # Validar qué columna de pérdida de área existe realmente en el DataFrame
-    columna_tamano = None
-    for col_posible in ['TOTAL_PERDIDA_AREA', 'PERDIDA_AREA', 'AREA_PERDIDA']:
-        if col_posible in df.columns:
-            columna_tamano = col_posible
-            break
-
     fig = px.scatter(
         df,
         x='PCT_SUELOS_ACIDOS',
         y='CREDITO_BILLONES',
         color='NOMBRE_PERFIL',
         hover_name='DEPARTAMENTO_NORM',
-        size=columna_tamano, # Usa la columna detectada o ninguna si no está
+        size='TOTAL_PERDIDA_AREA' if 'TOTAL_PERDIDA_AREA' in df.columns else None,
         log_y=True,
         title="Matriz Nacional: % Acidez vs. Valor Total Crédito FINAGRO (k=4)",
         labels={
@@ -217,23 +203,13 @@ if not df.empty and 'TOTAL_VALOR_CREDITO' in df.columns:
         height=650
     )
 
-    fig.update_traces(
-        marker=dict(line=dict(width=1, color='DarkSlateGrey'), opacity=0.85)
-    )
-
+    fig.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey'), opacity=0.85))
     fig.update_layout(
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1.0,
-            xanchor="left",
-            x=1.02,
-            title=dict(text="**Perfiles / Tipologías**")
-        ),
+        legend=dict(orientation="v", yanchor="top", y=1.0, xanchor="left", x=1.02, title="**Perfiles**"),
         margin=dict(t=50, b=50, l=50, r=180)
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("Nota: El tamaño del punto representa el área total afectada según registros. Pasa el cursor sobre cada punto para consultar el departamento exacto.")
+    st.caption("Nota: El tamaño del punto representa el área total perdida (Ha) según registros EVAS.")
 else:
     st.info("Cargue los datos de la matriz nacional para visualizar el gráfico interactivo.")
