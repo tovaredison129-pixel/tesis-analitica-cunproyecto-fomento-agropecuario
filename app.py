@@ -21,9 +21,9 @@ def fmt_miles(valor, decimales=0):
 # Cargar la Tabla Maestra Definitiva (con K=5 y submuestra continental)
 @st.cache_data
 def cargar_datos():
-    df = pd.read_csv("tabla_maestra_con_5_clusters_definitivo.csv", dtype={'DIVIPOLA': str}, low_memory=False)
+    ruta = "data/tabla_maestra_con_5_clusters_definitivo.csv"
+    df = pd.read_csv(ruta, dtype={'DIVIPOLA': str}, low_memory=False)
 
-    # Mapeo oficial de los 5 clústeres según la validación analítica de la tesis
     mapeo_clusters = {
         0: "C0. Transición y Ladera Intermedia",
         1: "C1. Empresarial de Altura y Alta Tecnología",
@@ -32,15 +32,16 @@ def cargar_datos():
         4: "C4. Enclave de Agricultura Intensiva y Alta Fertilización"
     }
 
-    # Identificar la columna de clústeres generada por K-Means
-    col_cluster = next((c for c in ['CLUSTER_KMEANS', 'CLUSTER', 'cluster'] if c in df.columns), 'CLUSTER_KMEANS')
-
-    if col_cluster in df.columns and 'NOMBRE_PERFIL' not in df.columns:
-        df['NOMBRE_PERFIL'] = df[col_cluster].map(mapeo_clusters).fillna("Perfil General")
+    col_cluster = next((c for c in ['CLUSTER_KMEANS', 'CLUSTER', 'cluster'] if c in df.columns), None)
+    if col_cluster is not None:
         df['CLUSTER'] = df[col_cluster]
+        if 'NOMBRE_PERFIL' not in df.columns:
+            df['NOMBRE_PERFIL'] = df[col_cluster].map(mapeo_clusters).fillna("Perfil General")
+    elif 'NOMBRE_PERFIL' not in df.columns:
+        df['CLUSTER'] = 0
+        df['NOMBRE_PERFIL'] = "Perfil General"
 
     return df
-
 df = cargar_datos()
 
 # ENCABEZADO PRINCIPAL
@@ -154,12 +155,14 @@ fuente_c = info_cultivo['FUENTE']
 c_apt1, c_apt2 = st.columns([2, 1])
 
 with c_apt1:
+    # ---> AQUÍ REEMPLAZAS EL BLOQUE if / elif / else <---
+    ph_str = f"{ph_val:.2f}".replace(".", ",")
     if ph_min_c <= ph_val <= ph_max_c:
-        st.success(f"✅ **Apto por pH**: El pH promedio del suelo ({ph_val:.2f}) se encuentra dentro del rango óptimo técnico para el **{cultivo_sel}** ([{ph_min_c} - {ph_max_c}]).")
+        st.success(f"✅ **Apto por pH**: El pH promedio del suelo ({ph_str}) se encuentra dentro del rango óptimo técnico para el **{cultivo_sel}** ([{ph_min_c} - {ph_max_c}]).")
     elif ph_val < ph_min_c:
-        st.warning(f"⚠️ **Restricción por Acidez**: El pH del suelo ({ph_val:.2f}) es inferior al mínimo requerido para el {cultivo_sel} ({ph_min_c}). Se requiere enmienda correctiva con cal.")
+        st.warning(f"⚠️ **Restricción por Acidez**: El pH del suelo ({ph_str}) es inferior al mínimo requerido para el {cultivo_sel} ({ph_min_c}). Se requiere enmienda correctiva con cal.")
     else:
-        st.warning(f"⚠️ **Restricción por Alcalinidad**: El pH del suelo ({ph_val:.2f}) supera el máximo recomendado para el {cultivo_sel} ({ph_max_c}).")
+        st.warning(f"⚠️ **Restricción por Alcalinidad**: El pH del suelo ({ph_str}) supera el máximo recomendado para el {cultivo_sel} ({ph_max_c}).")
 
 with c_apt2:
     st.info(f"📚 **Respaldo Técnico**:\n{fuente_c}")
